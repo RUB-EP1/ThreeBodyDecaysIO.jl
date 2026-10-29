@@ -80,9 +80,7 @@ lineshape_parser(model.chains[end].Xlineshape) isa Tuple
 
 dict, appendix = serializeToDict(model; lineshape_parser)
 dict[:kinematics][:names] = ["p", "pi", "K", "Lc"]
-dict[:functions] = [
-    (v[:name] = k; v) for (k, v) in appendix
-]
+dict[:functions] = [(v[:name] = k; v) for (k, v) in appendix]
 #
 test_file_name = "lc2ppi-test.json"
 open(test_file_name, "w") do io
