@@ -17,6 +17,7 @@ ThreeBodyDecays = "e6563dab-9ca1-5843-bde3-2ccf38d63843"
 
 [compat]
 HadronicLineshapes = ">= 0.4.2"
+MacroTools = "0.5"
 Random = ">= 1.7"
 RuntimeGeneratedFunctions = ">= 0.5"
 ThreeBodyDecays = "0.13.0"
