@@ -77,3 +77,41 @@ end
     @test bw1(Dict("m23sq" => 1)) == 6
     @test bw1 isa NamedArgFunc{<:HadronicLineshapes.AbstractFlexFunc}
 end
+
+@testset "Named function round trips" begin
+    for (T, data) in (
+        (
+            BreitWigner,
+            Dict(
+                "mass" => 1.0,
+                "width" => 0.1,
+                "ma" => 0.0,
+                "mb" => 0.0,
+                "l" => 0,
+                "d" => 1.5,
+                "x" => "s",
+            ),
+        ),
+        (
+            MultichannelBreitWigner,
+            Dict(
+                "mass" => 1.0,
+                "x" => "s",
+                "channels" =>
+                    [Dict("gsq" => 0.1, "ma" => 0.0, "mb" => 0.0, "l" => 0, "d" => 1.5)],
+            ),
+        ),
+        (Polynomial, Dict("coefficients" => [1.0, 2.0, 3.0], "x" => "s")),
+    )
+        wrapped = dict2instance(T, data)
+        serialized, _ = serializeToDict(wrapped)
+        restored = dict2instance(T, serialized)
+        @test restored.variable_names == ["s"]
+        for value in (0.5, 1.1, 2.0)
+            @test restored(Dict("s" => value, "unused" => 42)) ≈ wrapped.f(value)
+        end
+        @test_throws KeyError restored(Dict("wrong" => 1.1))
+    end
+    @test_throws ArgumentError NamedArgFunc(identity, String[])
+    @test_throws ArgumentError NamedArgFunc(identity, ["s", "t"])
+end

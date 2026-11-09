@@ -1,9 +1,23 @@
 # deserialization
 
-@with_kw struct NamedArgFunc{M,D}
+"""
+    NamedArgFunc(f, variable_names)
+
+Wrap a scalar function with its serialized argument name. Call the wrapper with
+an `AbstractDict` containing that name; other dictionary entries are ignored.
+Exactly one argument name is required.
+"""
+struct NamedArgFunc{M,D}
     f::M
     variable_names::D
+    function NamedArgFunc(f::M, variable_names::D) where {M,D}
+        length(variable_names) == 1 ||
+            throw(ArgumentError("NamedArgFunc requires exactly one argument name"))
+        new{M,D}(f, variable_names)
+    end
 end
+
+NamedArgFunc(; f, variable_names) = NamedArgFunc(f, variable_names)
 
 function (obj::NamedArgFunc)(dict::AbstractDict)
     @unpack variable_names = obj
@@ -112,4 +126,14 @@ end
 function serializeToDict(H::NoFormFactor)
     appendix = Dict()
     ("", appendix)
+end
+
+function serializeToDict(obj::NamedArgFunc{<:WrapFlexFunction{<:Polynomial}})
+    polynomial = obj.f.F
+    dict = LittleDict{String,Any}(
+        "type" => "Polynomial",
+        "coefficients" => collect(coeffs(polynomial)),
+        "x" => first(obj.variable_names),
+    )
+    return dict, Dict()
 end

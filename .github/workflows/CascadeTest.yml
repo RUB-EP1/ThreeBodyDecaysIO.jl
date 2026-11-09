@@ -1,0 +1,36 @@
+name: Cascade serialization
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+        paths:
+            - "src/**"
+            - "ext/**"
+            - "test/**"
+            - "Project.toml"
+            - ".github/workflows/CascadeTest.yml"
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+jobs:
+    test:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v7
+            - uses: julia-actions/setup-julia@v3
+              with:
+                  version: "1.11"
+            - uses: julia-actions/cache@v3
+            - name: Test optional CascadeDecays integration
+              shell: julia --color=yes {0}
+              run: |
+                  using Pkg
+                  source = pwd()
+                  Pkg.activate(; temp=true)
+                  Pkg.develop(path=source)
+                  Pkg.add(url="https://github.com/RUB-EP1/CascadeDecays.jl", rev="v0.4.1")
+                  include(joinpath(source, "test", "test_cascade_writer.jl"))
