@@ -16,8 +16,9 @@ RuntimeGeneratedFunctions = "7e49a35a-f44a-4d26-94aa-eba1b4ca6b47"
 ThreeBodyDecays = "e6563dab-9ca1-5843-bde3-2ccf38d63843"
 
 [compat]
-HadronicLineshapes = ">= 0.4.2"
 Polynomials = "4"
+HadronicLineshapes = ">= 0.4.2"
+Parameters = "0.12, 0.13"
 Random = ">= 1.7"
 RuntimeGeneratedFunctions = ">= 0.5"
 ThreeBodyDecays = "0.13.0"
