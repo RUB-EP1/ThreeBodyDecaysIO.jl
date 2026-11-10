@@ -15,45 +15,60 @@
 To install `ThreeBodyDecaysIO`, use the Julia package manager. From the Julia REPL, type the following:
 
 ```julia
-Pkg.add(url="https://github.com/mmikhasenko/ThreeBodyDecaysIO.jl")
+Pkg.add(url="https://github.com/RUB-EP1/ThreeBodyDecaysIO.jl")
 ```
 
 ## Usage
 
-### Basic Example
+### Writing and reading a model
 
-Here is a basic example of using `ThreeBodyDecaysIO` to serialize a three-body decay model to JSON:
+`serializeToDict(model)` returns a decay description and a function appendix.
+Use `add_hs3_fields` to build the full document:
 
 ```julia
-using ThreeBodyDecaysIO
+using ThreeBodyDecaysIO, ThreeBodyDecays, HadronicLineshapes, JSON
 
-# Define your model here
-model = defineYourModel()
-
-# Serialize to dictionary
-dict = serializeToDict(model)
-
-# Write to a JSON file
+description, functions = serializeToDict(model)
+document = add_hs3_fields(description, functions, "my_model")
 open("model.json", "w") do io
-    JSON.print(io, dict, 4)
+    JSON.print(io, document, 4)
 end
+
+# In-memory round trip. The function appendix is the reader's workspace.
+restored = dict2instance(ThreeBodyDecay, description; workspace = functions)
 ```
 
-### Reading a Model
+When reading JSON, deserialize each entry in `document["functions"]` with
+`dict2instance` and a supported type such as `BreitWigner`, then pass the resulting
+name-to-function dictionary as `workspace`. Chain names are preserved independently
+of the propagator names used to reference that workspace.
 
-To read a model from a JSON file and parse it:
+### Functions with named arguments
+
+`dict2instance` returns `NamedArgFunc` wrappers for Breit-Wigner, multichannel
+Breit-Wigner, polynomial, and generic functions. Each wrapper keeps one argument
+name and accepts a dictionary containing its value:
 
 ```julia
-using ThreeBodyDecaysIO
-
-# Read from JSON
-json_content = open("model.json") do io
-    JSON.parse(io)
-end
-
-# Parse the model
-model = dict2instance(ThreeBodyDecay, json_content)
+f = dict2instance(Polynomial, Dict("coefficients" => [1.0, 2.0], "x" => "s"))
+f(Dict("s" => 3.0)) # 7.0
+serialized, appendix = serializeToDict(f)
 ```
+
+Breit-Wigner and polynomial wrappers support serialization back to dictionaries.
+Generic expressions support reading and evaluation; arbitrary Julia closures
+cannot be serialized.
+
+### Cascade models
+
+For CascadeDecays models, use the separate
+[CascadeDecaysIO.jl](https://github.com/RUB-EP1/CascadeDecaysIO.jl) package,
+which owns cascade serialization, reading, and validation. ThreeBodyDecaysIO
+has no CascadeDecays dependency or extension.
+
+Core functionality supports Julia 1.7, ThreeBodyDecays 0.13/0.15, and JSON 0.21/1.
+Parameters 0.12 remains allowed because the supported ThreeBodyDecays releases
+require it.
 
 ## Running Tests
 

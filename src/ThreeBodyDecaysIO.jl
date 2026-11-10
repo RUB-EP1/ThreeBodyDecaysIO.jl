@@ -10,7 +10,7 @@ using DataFrames
 using HadronicLineshapes
 using MacroTools
 
-import Polynomials: Polynomial
+import Polynomials: Polynomial, coeffs
 export Polynomial
 
 using Random # for name generation

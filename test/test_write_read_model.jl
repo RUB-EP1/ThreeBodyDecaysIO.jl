@@ -98,3 +98,18 @@ end
     σs0 = randomPoint(masses(model_parsed))
     @test unpolarized_intensity(model_parsed, σs0) ≈ unpolarized_intensity(model, σs0)
 end
+
+@testset "Chain names are independent of shared propagators" begin
+    chain = first(model.chains)
+    named_model = ThreeBodyDecay(["first" => (1.0, chain), "second" => (2.0, chain)])
+    description, functions = serializeToDict(named_model)
+    @test getindex.(description["chains"], "name") == ["first", "second"]
+    @test length(functions) == 1
+    @test all(
+        c["name"] != c["propagators"][1]["parametrization"] for c in description["chains"]
+    )
+    restored = dict2instance(ThreeBodyDecay, description; workspace = functions)
+    @test restored.names == named_model.names
+    @test restored.couplings == named_model.couplings
+    @test first(serializeToDict(chain))["name"] == "my_decay_chain"
+end

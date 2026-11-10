@@ -48,11 +48,14 @@ function serializeToDict(chain::AbstractDecayChain; name::AbstractString = "my_d
     appendix = Dict()
 
     # propagator
-    name = "propagator_$(k)_$(hash(chain.Xlineshape))"
+    propagator_name = "propagator_$(k)_$(hash(chain.Xlineshape))"
     named_func = NamedArgFunc(chain.Xlineshape, ["s"])
-    merge!(appendix, Dict(name => named_func))
-    propagator =
-        LittleDict("spin" => chain.two_j |> d2, "parametrization" => name, "node" => [i, j])
+    merge!(appendix, Dict(propagator_name => named_func))
+    propagator = LittleDict(
+        "spin" => chain.two_j |> d2,
+        "parametrization" => propagator_name,
+        "node" => [i, j],
+    )
     propagators = [propagator]
     #
     H1, a = serializeToDict(chain.HRk)
