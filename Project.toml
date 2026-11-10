@@ -1,9 +1,10 @@
 name = "ThreeBodyDecaysIO"
 uuid = "418e7ecf-680e-4cb5-ad61-5e2f006aefac"
-version = "0.9.0"
+version = "0.10.0"
 authors = ["Mikhail Mikhasenko <mikhail.mikhasenko@cern.ch>"]
 
 [deps]
+FourVectors = "b122eb78-8380-428a-b8c8-584a022ae8b6"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 HadronicLineshapes = "49c9d978-1f9d-4e96-a984-0a9783c0b9bf"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
@@ -16,6 +17,7 @@ RuntimeGeneratedFunctions = "7e49a35a-f44a-4d26-94aa-eba1b4ca6b47"
 ThreeBodyDecays = "e6563dab-9ca1-5843-bde3-2ccf38d63843"
 
 [compat]
+FourVectors = "0.3.4"
 DataFrames = "1"
 JSON = "0.21, 1"
 MacroTools = "0.5"
@@ -25,8 +27,8 @@ HadronicLineshapes = ">= 0.4.2"
 Parameters = "0.12, 0.13"
 Random = ">= 1.7"
 RuntimeGeneratedFunctions = ">= 0.5"
-ThreeBodyDecays = "0.13, 0.15"
-julia = ">= 1.7"
+ThreeBodyDecays = "0.16"
+julia = "1.10"
 
 [extras]
 Lc2ppiKSemileptonicModelLHCb = "2be14d12-1226-44dd-959e-4e18ae37578d"

@@ -18,3 +18,5 @@ include("test_validation.jl")
 
 # test symbol to string key conversion
 include("test_symbol_string_keys.jl")
+
+include("test_phase_space.jl")

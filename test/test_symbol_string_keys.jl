@@ -14,12 +14,12 @@ using Test
         k = 1,
         two_j = 2,
         Xlineshape = BreitWigner(1.1, 0.1),
-        Hij = RecouplingLS((2, 0)) |> VertexFunction,
-        HRk = RecouplingLS((2, 2)) |> VertexFunction,
+        Hij = RecouplingLS((2, 0)) |> Vertex,
+        HRk = RecouplingLS((2, 2)) |> Vertex,
         tbs,
     )
 
-    model = ThreeBodyDecay("test" .=> [(1.0, ch1)])
+    model = ThreeBodyDecay("test" .=> [(1.0, ch1)]; reference_k = 1)
     dict, appendix = serializeToDict(model)
 
     # Test that all keys are Strings (not Symbols)

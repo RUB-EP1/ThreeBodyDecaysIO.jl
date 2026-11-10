@@ -1,104 +1,96 @@
 # ThreeBodyDecaysIO
 
-## Overview
+Read and write three-body amplitude models and evaluate indexed four-vector
+phase-space points using ThreeBodyDecays.jl and FourVectors.jl.
 
-`ThreeBodyDecaysIO` is a Julia module designed for the serialization and deserialization of models related to three-body decays in particle physics. It leverages the `ThreeBodyDecays` framework to provide comprehensive support for reading and writing model descriptions, facilitating the exchange of complex decay models and their kinematic configurations.
+Version 0.10 is a breaking transition requiring Julia 1.10 and ThreeBodyDecays 0.16.
+It implements the draft phase-space layout in
+[amplitude-serialization PR111](https://github.com/RUB-EP1/amplitude-serialization/pull/111),
+pinned in tests to `2d75724dde80ae94c97d2ce0ab2673a8da489d9b`.
+See the [coordinated migration guide](docs/reference-topology-transition.md).
 
-## Features
-
--   Serialization and deserialization of three-body decay models to and from JSON format.
--   Support for detailed kinematics, lineshapes, and interaction chains descriptions.
--   Utilities for validation and manipulation of model components.
-
-## Installation
-
-To install `ThreeBodyDecaysIO`, use the Julia package manager. From the Julia REPL, type the following:
+## Read, evaluate, write, validate
 
 ```julia
-Pkg.add(url="https://github.com/RUB-EP1/ThreeBodyDecaysIO.jl")
-```
+using ThreeBodyDecaysIO, ThreeBodyDecays, JSON
 
-## Usage
+document = JSON.parsefile("model.json")
+distribution = read_model(document; distribution="default_model", domain="default")
+point = first(document["parameter_points"])
+intensity = distribution(point)
 
-### Writing and reading a model
+# Polarized amplitudes use the same stored reference topology.
+p = four_vectors(point, distribution.domain)
+angles, invariants = angles_invariants(p, distribution.model)
+A = amplitude(distribution.model, angles, invariants)
 
-`serializeToDict(model)` returns a decay description and a function appendix.
-Use `add_hs3_fields` to build the full document:
-
-```julia
-using ThreeBodyDecaysIO, ThreeBodyDecays, HadronicLineshapes, JSON
-
-description, functions = serializeToDict(model)
-document = add_hs3_fields(description, functions, "my_model")
-open("model.json", "w") do io
-    JSON.print(io, document, 4)
+# The writer obtains reference_topology from the model, including when the
+# first chain has a different topology. Masses are written only in domains.
+output = add_hs3_fields(distribution.model, "default_model"; domain_name="default")
+merge!(output, validation_section(distribution.model, [p];
+    point_names=["check"], model_name="default_model", domain_name="default"))
+open("roundtrip.json", "w") do io
+    JSON.print(io, output, 4)
 end
-
-# In-memory round trip. The function appendix is the reader's workspace.
-restored = dict2instance(ThreeBodyDecay, description; workspace = functions)
+results = validate(output)
+@assert all(r -> r.passed, results)
 ```
 
-When reading JSON, deserialize each entry in `document["functions"]` with
-`dict2instance` and a supported type such as `BreitWigner`, then pass the resulting
-name-to-function dictionary as `workspace`. Chain names are preserved independently
-of the propagator names used to reference that workspace.
+Omit selectors only if exactly one distribution and one phase-space domain exist.
+Validation selects each checksum's distribution and its point's named domain.
+Each result contains `point`, `distribution`, `value`, `expected`, `passed`, and
+`error`. A malformed checksum produces a failed result and later checks continue.
+Missing or empty checksums raise an error. Default checksum tolerances are
+`rtol=1e-10`, `atol=1e-12`.
 
-### Functions with named arguments
+`read_model` returns `HadronicUnpolarizedIntensity` with `.model` and `.domain`.
+The reference topology is chosen when constructing the core model using
+`ThreeBodyDecay(pairs; reference_k=k)` and is inseparable from its couplings.
+Evaluation has no reference-topology override.
 
-`dict2instance` returns `NamedArgFunc` wrappers for Breit-Wigner, multichannel
-Breit-Wigner, polynomial, and generic functions. Each wrapper keeps one argument
-name and accepts a dictionary containing its value:
+## Phase-space conventions
 
-```julia
-f = dict2instance(Polynomial, Dict("coefficients" => [1.0, 2.0], "x" => "s"))
-f(Dict("s" => 3.0)) # 7.0
-serialized, appendix = serializeToDict(f)
-```
+A `phase_space` domain holds parent index 0 and final-state indices 1, 2, 3 with
+masses. Distribution kinematics hold matching identities and spins, without
+masses. A point holds `name`, `domain`, and `final_state`, whose entries have
+`index` and `p = {E, px, py, pz}`. Arrays may be reordered; indices determine
+particle identity. Duplicate, missing, unexpected, or noninteger indices fail.
+Legacy scalar angle points and flat `four_vectors` objects are not supported.
 
-Breit-Wigner and polynomial wrappers support serialization back to dictionaries.
-Generic expressions support reading and evaluation; arbitrary Julia closures
-cannot be serialized.
+Standard points must be in the parent rest frame. Positive finite energies,
+on-shell masses, total mass, and momentum conservation are checked. Absolute
+tolerances are `1e-6` for squared masses and `1e-8` for momentum/energy closure;
+units are those of the input domain. These are validation tolerances, not a
+projection onto physical phase space.
 
-### Cascade models
+`angles_invariants(vectors, masses; k)` accepts three FourVectors in index order.
+For `[[i,j],k]`, the aligned isobar points along +z, spectator k along -z, and
+daughter i lies in the positive-x half-plane. The active Euler rotation is
+`Rz(α) Ry(β) Rz(γ)`. At either polar axis α is chosen as zero; a collinear daughter
+uses γ=0. Principal `atan`/`acos` values define the Euler chart. Four-vectors
+fix an SO(3) orientation, not a unique SU(2) lift; polarized components use this
+declared chart and the core amplitude convention, without extra spectator phases.
+An isobar at rest has undefined orientation and is rejected.
 
-For CascadeDecays models, use the separate
-[CascadeDecaysIO.jl](https://github.com/RUB-EP1/CascadeDecaysIO.jl) package,
-which owns cascade serialization, reading, and validation. ThreeBodyDecaysIO
-has no CascadeDecays dependency or extension.
+For explicit low-level conversion of a moving parent, pass `frame=:canonical`.
+This applies a rotation-free boost into the parent rest frame. Polarization axes
+are those of this canonical frame; it does not infer a parent helicity frame.
+The standard distribution reader continues to require rest-frame points.
 
-Core functionality supports Julia 1.7, ThreeBodyDecays 0.13/0.15, and JSON 0.21/1.
-Parameters 0.12 remains allowed because the supported ThreeBodyDecays releases
-require it.
+## Functions and serialization
 
-## Running Tests
+Supported function types are BreitWigner, MultichannelBreitWigner, Polynomial,
+BlattWeisskopf, MomentumPower, and generic_function. Generic expressions accept
+numeric analytic operations, one independent variable, and finite numeric
+parameters. They do not execute arbitrary Julia code. Supply `custom_functions`
+as a name-to-`NamedArgFunc` dictionary for an explicit custom implementation.
+Arbitrary closures cannot be serialized.
 
-To ensure `ThreeBodyDecaysIO` is working correctly, you can run its test suite:
+`serializeToDict(model)` returns a decay description and function appendix.
+`add_hs3_fields(description, functions, name; domain=PhaseSpaceDomain(...))`
+assembles a document when using that lower-level interface. Chain names are
+preserved independently of shared propagator names.
 
-```julia
-using Pkg
-Pkg.test("ThreeBodyDecaysIO")
-```
-
-This will execute a series of tests, verifying the functionality of model serialization/deserialization, kinematics parsing, and more. See details in [`test/runtests.jl`](test/runtests.jl)
-
-## Running pre-commit hooks
-
-To check code formatting, spelling, and other style issues before committing, you can run the pre-commit hooks manually:
-
-```sh
-pre-commit run --all-files
-```
-
-This will run all configured checks on the entire codebase and automatically fix some issues. See `.pre-commit-config.yaml` for details.
-
-To skip pre-commit hooks for a specific commit (e.g., for quick commits), use the `--no-verify` flag:
-
-```sh
-git commit -m "your message" --no-verify
-```
-
-This allows you to commit without running the pre-commit checks when needed.
-
-## Contributing
-
-Contributions to `ThreeBodyDecaysIO` are welcome. To contribute, please fork the repository, make your changes, and submit a pull request.
+Cascade models remain in the separate
+[CascadeDecaysIO.jl](https://github.com/RUB-EP1/CascadeDecaysIO.jl) package.
+InstructionalDecayTrees.jl is an independent convention cross-check, not a dependency.

@@ -89,3 +89,15 @@ eachslice
 formfactor
 getbinned
 minorticks
+
+isfinite
+isidentifier
+setdiff
+ntuple
+atol
+Vararg
+hypot
+deepcopy
+parsefile
+showerror
+tryparse

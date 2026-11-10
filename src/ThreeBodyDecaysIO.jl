@@ -1,6 +1,7 @@
 module ThreeBodyDecaysIO
 
 using ThreeBodyDecays
+import FourVectors
 using ThreeBodyDecays: RecouplingLS, ParityRecoupling, NoRecoupling
 using ThreeBodyDecays: AbstractDecayChain
 using JSON
@@ -20,7 +21,6 @@ RuntimeGeneratedFunctions.init(@__MODULE__)
 
 export serializeToDict
 export add_hs3_fields
-include("writer.jl")
 
 export NamedArgFunc
 include("HadronicLineshapesIO.jl")
@@ -29,6 +29,11 @@ export generic_function
 export expression_argument, expression_arguments
 include("generic_function.jl")
 
+export PhaseSpaceDomain, phase_space_domain, four_vectors, four_vector_point
+include("phase_space.jl")
+include("writer.jl")
+
+export read_model, validate
 export HadronicUnpolarizedIntensity
 include("HadronicUnpolarizedIntensity.jl")
 

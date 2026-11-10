@@ -1,86 +1,68 @@
-using Test
-using ThreeBodyDecaysIO
-using ThreeBodyDecays
-
-@testset "Order in angles_invariants" begin
-    ms = ThreeBodyMasses(1.0, 2.0, 1.3; m0 = 8.0)
-    σs = x2σs([0.1, 0.2], ms; k = 2)
-
-    _cosθ12 = cosθ12(σs, ms^2)
-    mass_angles_cascade = [(ms.m0, 0.0, 1.0), (sqrt(σs.σ3), 0, _cosθ12)]
-    angles, _σs = angles_invariants(mass_angles_cascade, ms; k = 3)
-    @test all(collect(_σs) .≈ collect(σs))
-
-    _cosθ23 = cosθ23(σs, ms^2)
-    mass_angles_cascade = [(ms.m0, 0.0, 1.0), (sqrt(σs.σ1), 0, _cosθ23)]
-    angles, _σs = angles_invariants(mass_angles_cascade, ms; k = 1)
-    @test all(collect(_σs) .≈ collect(σs))
-
-    _cosθ31 = cosθ31(σs, ms^2)
-    mass_angles_cascade = [(ms.m0, 0.0, 1.0), (sqrt(σs.σ2), 0, _cosθ31)]
-    angles, _σs = angles_invariants(mass_angles_cascade, ms; k = 2)
-    @test all(collect(_σs) .≈ collect(σs))
-end
-
-
-
-
-model = let
-    tbs = ThreeBodySystem(
-        ms = ThreeBodyMasses(0.141, 0.142, 0.143; m0 = 3.09),
-        two_js = ThreeBodySpins(0, 0, 0; two_h0 = 2),
+@testset "Domain selection and checksum failure isolation" begin
+    @test_throws ArgumentError read_model(
+        JSON.parsefile(joinpath(@__DIR__, "lc2ppi-lhcb-test.json")),
     )
-    dpp = randomPoint(tbs)
-    #
-    two_j = 2
-    ch1 = DecayChain(;
-        k = 1,
-        two_j,
-        Xlineshape = BreitWigner(1.1, 0.1),
-        Hij = RecouplingLS((two_j, 0)) |> VertexFunction,
-        HRk = RecouplingLS((two_j, two_j)) |> VertexFunction,
-        tbs,
-    )
-    ch2 = DecayChain(ch1; k = 2)
-    ch3 = DecayChain(ch1; k = 3)
-    #
-    ThreeBodyDecay("K892" .=> [(4.0, ch1), (2.0, ch2), (3.0, ch3)])
-end
-
-@testset "Order and values in validation_fields" begin
+    document = add_hs3_fields(model)
     ms = masses(model)
-    σs = x2σs([0.2, 0.3], ms; k = 1)
-    #
-    model_name, point_name = "my_model", "my_point"
-    _fields1 = validation_fields(model, σs; k = 2, point_name, model_name)
-    _fields2 = validation_fields(
-        model,
-        (m = sqrt(σs[2]), cosθ = cosθ31(σs, ms^2));
-        k = 2,
-        point_name,
-        model_name,
+    vectors = map(
+        FourVectors.FourVector,
+        aligned_four_vectors(randomPoint(ms), ms; k = reference_k(model)),
     )
-    #
-    @test _fields1[2]["value"] ≈ _fields2[2]["value"]
-    @test _fields1[2]["point"] == _fields2[2]["point"] == point_name
-    @test _fields1[2]["distribution"] == _fields2[2]["distribution"] == model_name
-    d1 = array2dict(_fields1[1]["parameters"]; key = "name", apply = x -> x["value"])
-    d2 = array2dict(_fields2[1]["parameters"]; key = "name", apply = x -> x["value"])
-    #
-    @test collect(keys(d1)) ==
-          collect(keys(d2)) ==
-          ["m_31_2", "phi_31_2", "cos_theta_31_2", "m_31", "phi_31", "cos_theta_31"]
-    @test all(values(d1) .≈ values(d2))
+    merge!(
+        document,
+        validation_section(
+            model,
+            [vectors];
+            point_names = ["point"],
+            model_name = "my_amplitude_model",
+        ),
+    )
+    @test only(validate(document)).passed
+    parsed = read_model(document)
+    point = only(document["parameter_points"])
+    @test parsed(point) > 0
+    @test_throws MethodError parsed(point; k = 1)
+    permuted = deepcopy(document)
+    reverse!(permuted["domains"][1]["final_state"])
+    reverse!(permuted["distributions"][1]["decay_description"]["kinematics"]["final_state"])
+    reverse!(permuted["parameter_points"][1]["final_state"])
+    @test only(validate(permuted)).passed
+    broken = deepcopy(document)
+    broken["parameter_points"][1]["final_state"][1]["index"] = 2
+    @test !only(validate(broken)).passed
+    badchecks = deepcopy(document)
+    badchecks["misc"] = Dict{String,Any}(badchecks["misc"])
+    badchecks["misc"]["amplitude_model_checksums"] =
+        Any[nothing, only(document["misc"]["amplitude_model_checksums"])]
+    @test getproperty.(validate(badchecks), :passed) == [false, true]
+    @test_throws ArgumentError validate(add_hs3_fields(model))
+    two_domains = deepcopy(document)
+    extra = deepcopy(first(two_domains["domains"]))
+    extra["name"] = "other"
+    push!(two_domains["domains"], extra)
+    @test_throws ArgumentError read_model(two_domains)
+    @test read_model(two_domains; domain = "default")(point) ≈ parsed(point)
+    @test only(validate(two_domains)).passed
+    @test_throws ArgumentError read_model(two_domains; domain = "missing")
+    wrong = deepcopy(point)
+    wrong["domain"] = "other"
+    @test_throws ArgumentError parsed(wrong)
+    legacy = deepcopy(document)
+    legacy["distributions"][1]["decay_description"]["kinematics"]["initial_state"]["mass"] =
+        ms.m0
+    @test_throws ArgumentError read_model(legacy)
+    unsupported = deepcopy(document)
+    unsupported["functions"][1]["type"] = "exit"
+    @test_throws ArgumentError read_model(unsupported)
+end
 
-    section = validation_section(
-        model,
-        [σs, σs];
-        k = 1,
-        point_names = point_name .* string(1:2),
-        model_name,
-    )
-    @test array2dict(section[:parameter_points][1]["parameters"]; key = "name") |>
-          keys |>
-          collect ==
-          ["m_23_1", "phi_23_1", "cos_theta_23_1", "m_23", "phi_23", "cos_theta_23"]
+@testset "Numeric and analytic input restrictions" begin
+    @test string2complex("1.5-2.3i") == 1.5-2.3im
+    for value in ("exit()", "1; error(1)", "NaN", "Inf")
+        @test_throws ArgumentError string2complex(value)
+    end
+    for expression in
+        ("run(x)", "Base.sin(x)", "x[1]", "begin x; exit() end", "x=1", "@time x")
+        @test_throws ArgumentError ThreeBodyDecaysIO.parse_into_function(expression)
+    end
 end

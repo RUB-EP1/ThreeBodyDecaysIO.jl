@@ -30,3 +30,11 @@ Xlineshape
 ηηηphase
 ηηηphaseisplus
 ηηηphasesign
+
+cosbeta
+badchecks
+noninteger
+nonfinite
+pipipi
+rhopi
+pipi

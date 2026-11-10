@@ -18,10 +18,17 @@ function update2values(x, ref)
     return x
 end
 
-string2complex(s) = eval(Meta.parse(replace(s, "i" => "im")))
+function string2complex(value::AbstractString)
+    # Base's numeric parser accepts complex literals without evaluating Julia code.
+    result = tryparse(ComplexF64, replace(value, r"i$" => "im"))
+    result === nothing && throw(ArgumentError("invalid complex numeric literal: $value"))
+    isfinite(real(result)) && isfinite(imag(result)) ||
+        throw(ArgumentError("complex value must be finite"))
+    return result
+end
 
 function topology2k(topology::AbstractArray)
-    indices = fully_flatten(topology)
+    indices = flatten_topology(topology)
     length(indices) != 3 &&
         error("Topology with more that three particles is not implemented")
     !(topology ∈ ([[1, 2], 3], [[2, 3], 1], [[3, 1], 2])) && error(
