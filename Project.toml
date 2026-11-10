@@ -1,6 +1,6 @@
 name = "ThreeBodyDecaysIO"
 uuid = "418e7ecf-680e-4cb5-ad61-5e2f006aefac"
-version = "0.9.0"
+version = "0.9.1"
 authors = ["Mikhail Mikhasenko <mikhail.mikhasenko@cern.ch>"]
 
 [deps]
