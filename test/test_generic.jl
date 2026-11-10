@@ -19,7 +19,7 @@ parse_into_function(expression)
     f, _ = parse_into_function(expression * "*8")
     @test f(1.1) == e(1.1) * 8
     #
-    @test_throws AssertionError parse_into_function(expression * "*y")
+    @test_throws ArgumentError parse_into_function(expression * "*y")
 end
 
 @testset "BreitWignerWidthExpLikeBugg as a string" begin

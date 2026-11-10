@@ -59,28 +59,44 @@ function expression_argument(expr)
     return first(args)
 end
 
-function print_function(body, arg, pars)
-    function_def_str = "$arg -> begin\n"
-    map(Tuple(keys(pars))) do k
-        function_def_str *= "$k = $(pars[k])\n"
-    end
-    function_def_str *= "$(body)\n end"
-    #
-    return function_def_str
+function checked_analytic_expression(node)
+    node isa Number && isfinite(node) && return node
+    node isa Symbol && return node
+    node isa Expr && node.head == :call ||
+        throw(ArgumentError("Only numeric analytic expressions are supported"))
+    op = first(node.args)
+    op isa Symbol && op in operator_symbols && !(op in (:i, :im)) ||
+        throw(ArgumentError("Unsupported analytic operation: $op"))
+    return Expr(
+        :call,
+        op == :pow ? :^ : op,
+        map(checked_analytic_expression, node.args[2:end])...,
+    )
 end
 
 function parse_into_function(body, pars = Dict("i" => 1im))
-    all_symbols = expression_arguments(Meta.parse(body))
-    variables = [s for s in all_symbols if !haskey(pars, string(s))]
-    @assert length(variables) == 1 "Number of undefined variables more than one: variables=$variables"
-    arg = variables[1]
-    #
-    function_def_str = print_function(body, arg, pars)
-    function_def = Meta.parse(function_def_str)
-
-    # Use RuntimeGeneratedFunction to avoid world age issues
-    f = @RuntimeGeneratedFunction function_def
-    f, arg
+    expression = checked_analytic_expression(Meta.parse(body))
+    parameters = Dict{Symbol,Any}(:i => 1im, :im => 1im)
+    for (key, value) in pars
+        symbol = Symbol(key)
+        Base.isidentifier(string(key)) || throw(ArgumentError("Invalid parameter name"))
+        symbol in operator_symbols &&
+            !(symbol in (:i, :im)) &&
+            throw(ArgumentError("Parameter shadows an analytic operation"))
+        number = value isa AbstractString ? string2complex(value) : value
+        number isa Number && isfinite(number) ||
+            throw(ArgumentError("Analytic parameters must be finite numbers"))
+        parameters[symbol] = number
+    end
+    variables = setdiff(expression_arguments(expression), keys(parameters))
+    length(variables) == 1 ||
+        throw(ArgumentError("Expected one independent variable: $variables"))
+    arg = only(variables)
+    substituted = MacroTools.prewalk(expression) do node
+        node isa Symbol && haskey(parameters, node) ? parameters[node] : node
+    end
+    f = @RuntimeGeneratedFunction Expr(:->, arg, substituted)
+    return f, arg
 end
 
 struct generic_function end

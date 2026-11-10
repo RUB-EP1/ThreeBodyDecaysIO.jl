@@ -1,115 +1,59 @@
+using ThreeBodyDecaysIO, ThreeBodyDecays, Test
 using ThreeBodyDecaysIO.HadronicLineshapes
-using ThreeBodyDecaysIO.ThreeBodyDecays
-using ThreeBodyDecaysIO.Parameters
-using ThreeBodyDecaysIO.JSON
-using ThreeBodyDecaysIO
-using Test
-
+using ThreeBodyDecaysIO: JSON, FourVectors
 
 model = let
     tbs = ThreeBodySystem(
         ms = ThreeBodyMasses(0.141, 0.142, 0.143; m0 = 3.09),
         two_js = ThreeBodySpins(0, 0, 0; two_h0 = 2),
     )
-    dpp = randomPoint(tbs)
-    #
-    two_j = 2
-    #
-    ch1 = DecayChain(;
+    chain = DecayChain(
         k = 1,
-        two_j,
+        two_j = 2,
         Xlineshape = BreitWigner(1.1, 0.1),
-        Hij = RecouplingLS((two_j, 0)) |> VertexFunction,
-        HRk = RecouplingLS((two_j, two_j)) |> VertexFunction,
-        tbs,
+        Hij = Vertex(RecouplingLS((2, 0))),
+        HRk = Vertex(RecouplingLS((2, 2))),
+        tbs = tbs,
     )
-    ch2 = DecayChain(ch1; k = 2)
-    ch3 = DecayChain(ch1; k = 3)
-    #
-    ThreeBodyDecay("K892" .=> [(4.0, ch1), (2.0, ch2), (3.0, ch3)])
+    ThreeBodyDecay(
+        ["first"=>(1.0, chain), "second"=>(2.0, DecayChain(chain; k = 2))];
+        reference_k = 3,
+    )
 end
-
-decay_description, appendix = serializeToDict(model)
-dict = add_hs3_fields(decay_description, appendix, "default-model")
-
-open("test.json", "w") do io
-    JSON.print(io, dict, 4)
-end
-
-# reading
-json_content = open("test.json") do io
-    JSON.parse(io)
-end
-rm("test.json")
-
-@unpack decay_description = json_content["distributions"][1]
-@testset "JSON has all key sections" begin
-    @test haskey(decay_description, "kinematics")
-    @test haskey(decay_description, "reference_topology")
-    @test haskey(decay_description, "chains")
-    #
-    # @test haskey(json_content, "variables")
-    # @test haskey(json_content, "validation")
-    #
-    @unpack chains = decay_description
-    chain = chains[1]
-    @test haskey(chain, "vertices")
-    @test haskey(chain, "propagators")
-end
-
-@testset "Specific to the test model" begin
-    @test length(decay_description["chains"]) == 3
-
-    @unpack chains = decay_description
-    map(chains) do chain
-        @test length(chain["vertices"]) == 2
-        @test length(chain["propagators"]) == 1
-    end
-end
-
-
-input = copy(json_content)
-
-@testset "Parse model" begin
-    @unpack decay_description = input["distributions"][1]
-    @unpack functions = input
-    workspace = Dict{String,Any}()
-    for fn in functions
-        @unpack name, type = fn
-        instance_type = eval(Symbol(type))
-        workspace[name] = dict2instance(instance_type, fn)
-    end
-    @test dict2instance(ThreeBodyDecay, decay_description; workspace) isa ThreeBodyDecay
-end
-
-
-
-@testset "Parse model matches the original model" begin
-    @unpack decay_description = input["distributions"][1]
-    @unpack functions = input
-    workspace = Dict{String,Any}()
-    for fn in functions
-        @unpack name, type = fn
-        instance_type = eval(Symbol(type))
-        workspace[name] = dict2instance(instance_type, fn)
-    end
-    model_parsed = dict2instance(ThreeBodyDecay, decay_description; workspace)
-
-    σs0 = randomPoint(masses(model_parsed))
-    @test unpolarized_intensity(model_parsed, σs0) ≈ unpolarized_intensity(model, σs0)
-end
-
-@testset "Chain names are independent of shared propagators" begin
+@testset "Indexed model roundtrip" begin
+    document = JSON.parse(JSON.json(add_hs3_fields(model)))
+    parsed = read_model(document)
+    @test reference_k(parsed.model) == 3
+    @test parsed.model.names == model.names
+    @test parsed.model.couplings == model.couplings
+    @test !haskey(
+        document["distributions"][1]["decay_description"]["kinematics"]["initial_state"],
+        "mass",
+    )
+    sigma = randomPoint(masses(model))
+    @test amplitude(parsed.model, sigma) ≈ amplitude(model, sigma)
     chain = first(model.chains)
-    named_model = ThreeBodyDecay(["first" => (1.0, chain), "second" => (2.0, chain)])
-    description, functions = serializeToDict(named_model)
-    @test getindex.(description["chains"], "name") == ["first", "second"]
+    shared = ThreeBodyDecay(["one"=>(1.0, chain), "two"=>(2.0, chain)]; reference_k = 2)
+    description, functions = serializeToDict(shared)
     @test length(functions) == 1
-    @test all(
-        c["name"] != c["propagators"][1]["parametrization"] for c in description["chains"]
+    @test getindex.(description["chains"], "name") == ["one", "two"]
+    @test read_model(add_hs3_fields(shared)).model.names == shared.names
+end
+
+@testset "Referenced vertex form-factor roundtrip" begin
+    chain = first(model.chains)
+    with_factor = DecayChain(
+        k = chain.k,
+        two_j = chain.two_j,
+        Xlineshape = chain.Xlineshape,
+        HRk = chain.HRk,
+        Hij = Vertex(chain.Hij.h, BlattWeisskopf{1}(2.0)),
+        tbs = chain.tbs,
     )
-    restored = dict2instance(ThreeBodyDecay, description; workspace = functions)
-    @test restored.names == named_model.names
-    @test restored.couplings == named_model.couplings
-    @test first(serializeToDict(chain))["name"] == "my_decay_chain"
+    source = ThreeBodyDecay(["factor" => (1.0, with_factor)]; reference_k = 3)
+    document = JSON.parse(JSON.json(add_hs3_fields(source)))
+    parsed = read_model(document).model
+    sigma = randomPoint(masses(source))
+    @test amplitude(parsed, sigma) ≈ amplitude(source, sigma)
+    @test any(fn -> fn["type"] == "BlattWeisskopf", document["functions"])
 end

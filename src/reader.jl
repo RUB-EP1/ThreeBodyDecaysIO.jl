@@ -1,43 +1,22 @@
-function dict2instance(::Type{ThreeBodySystem}, dict::AbstractDict)
-    initial_state = dict["initial_state"]
-    final_states = dict["final_state"]
-
-    # Parse initial state
-    initial_index = initial_state["index"]
-    initial_name = initial_state["name"]
-    initial_spin = initial_state["spin"]
-    initial_mass = initial_state["mass"]
-
-    # Parse final states
-    final_indices = [state["index"] for state in final_states]
-    final_names = [state["name"] for state in final_states]
-    final_spins = [state["spin"] for state in final_states]
-    final_masses = [state["mass"] for state in final_states]
-
-    # Create DataFrame
-    df = DataFrame(
-        indices = [initial_index; final_indices],
-        names = [initial_name; final_names],
-        spins = [initial_spin; final_spins],
-        masses = [initial_mass; final_masses],
+function dict2instance(
+    ::Type{ThreeBodySystem},
+    dict::AbstractDict;
+    domain::PhaseSpaceDomain,
+)
+    initial =
+        indexed_states([dict["initial_state"]], [0]; label = "initial-state kinematics")
+    finals = indexed_states(dict["final_state"], 1:3; label = "final-state kinematics")
+    any(haskey(state, "mass") for state in (initial[0], values(finals)...)) && throw(
+        ArgumentError(
+            "kinematics masses are obsolete; masses belong only in the phase_space domain",
+        ),
     )
-
-    sort!(df, :indices)
-    N = size(df, 1) - 1
-    first(df.indices) != 0 && error("particle 0 should be indicating the overall system")
-    !all(df.indices .== 0:N) &&
-        error("Expected indices 0,1,...,$N for the reaction with N final particles")
-    N != 3 && error("ThreeBodyDecays.jl only works with three-body systems only")
-
-    ms = ThreeBodyMasses(df.masses[2:end]...; m0 = df.masses[1])
-    two_spins = df.spins .|> x2
-    two_js = ThreeBodySpins(two_spins[2:end]...; two_h0 = two_spins[1])
-
-    tbs = ThreeBodySystem(ms, two_js)
-    return tbs
+    two_js = ThreeBodySpins(
+        (x2(finals[i]["spin"]) for i = 1:3)...;
+        two_h0 = x2(initial[0]["spin"]),
+    )
+    return ThreeBodySystem(domain.masses, two_js)
 end
-
-
 
 function dict2instance(::Type{DecayChain}, dict; tbs, workspace = Dict())
     coupling = string2complex(dict["weight"])
@@ -59,7 +38,7 @@ function dict2instance(::Type{DecayChain}, dict; tbs, workspace = Dict())
     ind_ij = findfirst(v -> v["node"] == [i, j], vertices)
     vertex_ij = vertices[ind_ij]
     Hij = dict2instance(
-        ThreeBodyDecays.VertexFunction,
+        ThreeBodyDecays.Vertex,
         vertex_ij,
         (; two_j_fin = [two_js[i], two_js[j]], two_j_ini = two_j);
         workspace,
@@ -68,7 +47,7 @@ function dict2instance(::Type{DecayChain}, dict; tbs, workspace = Dict())
     ind_Rk = findfirst(v -> v["node"] == [[i, j], k], vertices)
     vertex_Rk = vertices[ind_Rk]
     HRk = dict2instance(
-        ThreeBodyDecays.VertexFunction,
+        ThreeBodyDecays.Vertex,
         vertex_Rk,
         (; two_j_fin = [two_j, two_js[k]], two_j_ini = two_js[4]);
         workspace,
@@ -85,29 +64,26 @@ function dict2instance(::Type{DecayChain}, dict; tbs, workspace = Dict())
     (; coupling, chain, name)
 end
 
-function build_or_fetch(key, workspace)
-    key isa Dict && return dict2object(key)
-    return workspace[key]
-end
 
-function dict2instance(::Type{ThreeBodyDecay}, decay_description; workspace)
+function dict2instance(
+    ::Type{ThreeBodyDecay},
+    decay_description;
+    workspace,
+    domain::PhaseSpaceDomain,
+)
     @unpack kinematics, chains = decay_description
-    tbs = dict2instance(ThreeBodySystem, kinematics)
+    tbs = dict2instance(ThreeBodySystem, kinematics; domain)
     df = dict2instance.(DecayChain, chains; tbs, workspace) |> DataFrame
     model = ThreeBodyDecay(
         Vector{Pair{String,Tuple{Complex,AbstractDecayChain}}}(
             df.name .=> zip(df.coupling, df.chain),
-        ),
+        );
+        reference_k = topology2k(decay_description["reference_topology"]),
     )
     return model
 end
 
-function dict2instance(
-    ::Type{ThreeBodyDecays.VertexFunction},
-    dict,
-    properties;
-    workspace = Dict(),
-)
+function dict2instance(::Type{ThreeBodyDecays.Vertex}, dict, properties; workspace = Dict())
 
     formfactor_name = dict["formfactor"]
     # Handle formfactor: if empty string, use NoFormFactor(), otherwise get from workspace
@@ -118,7 +94,7 @@ function dict2instance(
     end
     helicity = dict2instance(ThreeBodyDecays.Recoupling, dict, properties)
 
-    return VertexFunction(helicity, formfactor)
+    return Vertex(helicity, formfactor)
 end
 
 function dict2instance(::Type{ThreeBodyDecays.Recoupling}, dict, properties)

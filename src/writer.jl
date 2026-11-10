@@ -1,7 +1,14 @@
-function serializeToDict(H::VertexFunction)
+function serializeToDict(H::Vertex)
     type = "ls"
     @unpack h, ff = H
-    ff_name, ff_appendix = serializeToDict(ff)
+    ff_dict, ff_appendix = serializeToDict(ff)
+    ff_name = if ff_dict == ""
+        ""
+    else
+        key = "formfactor_$(hash(ff))"
+        ff_appendix[key] = ff_dict
+        key
+    end
     h_dict, _ = serializeToDict(h) # helicity coupling does not produce an appendix
     H_dict = LittleDict{String,Any}("type" => type, "formfactor" => ff_name)
     merge!(H_dict, h_dict)
@@ -87,29 +94,13 @@ function serializeToDict(
     system_dict = LittleDict(
         "initial_state" => LittleDict(
             "name" => particle_labels[4],
-            "mass" => ms[4],
             "index" => 0,
             "spin" => d2(two_js[4]),
         ),
         "final_state" => [
-            LittleDict(
-                "name" => particle_labels[1],
-                "mass" => ms[1],
-                "index" => 1,
-                "spin" => d2(two_js[1]),
-            ),
-            LittleDict(
-                "name" => particle_labels[2],
-                "mass" => ms[2],
-                "index" => 2,
-                "spin" => d2(two_js[2]),
-            ),
-            LittleDict(
-                "name" => particle_labels[3],
-                "mass" => ms[3],
-                "index" => 3,
-                "spin" => d2(two_js[3]),
-            ),
+            LittleDict("name" => particle_labels[1], "index" => 1, "spin" => d2(two_js[1])),
+            LittleDict("name" => particle_labels[2], "index" => 2, "spin" => d2(two_js[2])),
+            LittleDict("name" => particle_labels[3], "index" => 3, "spin" => d2(two_js[3])),
         ],
     )
     system_dict, Dict()
@@ -146,7 +137,7 @@ function serializeToDict(
         push!(dict, "weight" => replace(string(coupling), "im" => "i"))
     end
     #
-    i, j, k = ijk(first(chains).k)
+    i, j, k = ijk(reference_k(model))
     #
     model_dict = LittleDict{String,Any}(
         "kinematics" => _kinematics,
@@ -157,65 +148,51 @@ function serializeToDict(
 end
 
 
-function add_hs3_fields(decay_description, appendix, model_name = "my_amplitude_model")
+"""
+    add_hs3_fields(description, appendix, name="my_amplitude_model"; domain)
+    add_hs3_fields(model::ThreeBodyDecay, name="my_amplitude_model"; domain_name="default")
 
-    k = topology2k(decay_description["reference_topology"])
-    variable_groups = variablesToDict(k)
-    variable_names = vcat(map(variable_groups) do v
-        v["mass_phi_costheta"]
-    end...)
-
-    dict = OrderedDict(
+Build the PR111 document. Masses live only in the supplied phase-space domain;
+the model overload obtains them from the model and creates that domain.
+"""
+function add_hs3_fields(
+    decay_description,
+    appendix,
+    model_name = "my_amplitude_model";
+    domain::PhaseSpaceDomain,
+)
+    return OrderedDict(
         "distributions" => [
             OrderedDict(
                 "type" => "HadronicUnpolarizedIntensity",
                 "name" => model_name,
                 "decay_description" => decay_description,
-                "variables" => variable_groups,
             ),
         ],
         "functions" => [
             begin
-                if v isa NamedArgFunc
-                    v_dict, _ = serializeToDict(v)
-                    v_dict["name"] = k
-                    v_dict
-                else
-                    v["name"] = k
-                    v
-                end
-            end for (k, v) in appendix
+                fn, _ = v isa NamedArgFunc ? serializeToDict(v) : (copy(v), Dict())
+                fn["name"] = name
+                fn
+            end for (name, v) in appendix
         ],
-        "domains" => [
-            OrderedDict(
-                "name" => "default",
-                "type" => "product_domain",
-                "axes" => [
-                    OrderedDict("name" => name, "min" => -1, "max" => 1) for
-                    name in variable_names
-                ],
-            ),
-        ],
+        "domains" => [first(serializeToDict(domain))],
         "misc" => Dict(),
-        "parameter_points" => Dict(),
+        "parameter_points" => [],
     )
-    return dict
 end
 
-
-function variablesToDict(k::Int)
-    i, j = ij_from_k(k)
-    ij_str = "$(i)$(j)"
-    ij_k_str = "$(i)$(j)_$(k)"
-    return [
-        Dict(
-            "node" => [i, j],
-            "mass_phi_costheta" => ["m_" * ij_str, "phi_" * ij_str, "cos_theta_" * ij_str],
-        ),
-        Dict(
-            "node" => [[i, j], k],
-            "mass_phi_costheta" =>
-                ["m_" * ij_k_str, "phi_" * ij_k_str, "cos_theta_" * ij_k_str],
-        ),
-    ]
+function add_hs3_fields(
+    model::ThreeBodyDecay,
+    model_name = "my_amplitude_model";
+    domain_name = "default",
+    particle_labels = ("A", "B", "C", "X"),
+)
+    description, appendix = serializeToDict(model; particle_labels)
+    return add_hs3_fields(
+        description,
+        appendix,
+        model_name;
+        domain = PhaseSpaceDomain(domain_name, masses(model)),
+    )
 end

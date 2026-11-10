@@ -27,9 +27,9 @@ jobs:
             matrix:
                 # Keep legacy Julia on Intel; current Julia runs natively on Apple Silicon.
                 include:
-                    - { version: "1.7", os: ubuntu-latest, arch: x64, allow_failure: false }
-                    - { version: "1.7", os: macos-15-intel, arch: x64, allow_failure: false }
-                    - { version: "1.7", os: windows-latest, arch: x64, allow_failure: false }
+                    - { version: "1.10", os: ubuntu-latest, arch: x64, allow_failure: false }
+                    - { version: "1.10", os: macos-15-intel, arch: x64, allow_failure: false }
+                    - { version: "1.10", os: windows-latest, arch: x64, allow_failure: false }
                     - { version: "1", os: ubuntu-latest, arch: x64, allow_failure: false }
                     - { version: "1", os: macOS-latest, arch: aarch64, allow_failure: false }
                     - { version: "1", os: windows-latest, arch: x64, allow_failure: false }
