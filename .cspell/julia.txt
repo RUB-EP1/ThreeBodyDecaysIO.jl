@@ -89,9 +89,3 @@ eachslice
 formfactor
 getbinned
 minorticks
-inds
-nfinal
-setdiff
-isfinite
-isnothing
-ntuple

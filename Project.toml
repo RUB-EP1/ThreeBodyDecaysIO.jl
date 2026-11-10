@@ -15,14 +15,7 @@ Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 RuntimeGeneratedFunctions = "7e49a35a-f44a-4d26-94aa-eba1b4ca6b47"
 ThreeBodyDecays = "e6563dab-9ca1-5843-bde3-2ccf38d63843"
 
-[weakdeps]
-CascadeDecays = "fffe189e-c188-4e56-b22b-870ae3b23d6b"
-
-[extensions]
-CascadeDecaysExt = "CascadeDecays"
-
 [compat]
-CascadeDecays = "0.4.1, 0.5"
 DataFrames = "1"
 JSON = "0.21, 1"
 MacroTools = "0.5"
@@ -32,11 +25,10 @@ HadronicLineshapes = ">= 0.4.2"
 Parameters = "0.12, 0.13"
 Random = ">= 1.7"
 RuntimeGeneratedFunctions = ">= 0.5"
-ThreeBodyDecays = "0.13, 0.14, 0.15"
+ThreeBodyDecays = "0.13, 0.15"
 julia = ">= 1.7"
 
 [extras]
-CascadeDecays = "fffe189e-c188-4e56-b22b-870ae3b23d6b"
 Lc2ppiKSemileptonicModelLHCb = "2be14d12-1226-44dd-959e-4e18ae37578d"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 

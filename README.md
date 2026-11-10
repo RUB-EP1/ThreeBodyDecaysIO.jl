@@ -59,30 +59,16 @@ Breit-Wigner and polynomial wrappers support serialization back to dictionaries.
 Generic expressions support reading and evaluation; arbitrary Julia closures
 cannot be serialized.
 
-### CascadeDecays models (Julia 1.11 or newer)
+### Cascade models
 
-CascadeDecays is an optional dependency loaded through a package extension.
-Install a supported CascadeDecays release (0.4.1 or 0.5) alongside this package.
-For the unregistered 0.4.1 release, use
-`Pkg.add(url="https://github.com/RUB-EP1/CascadeDecays.jl", rev="v0.4.1")`.
+For CascadeDecays models, use the separate
+[CascadeDecaysIO.jl](https://github.com/RUB-EP1/CascadeDecaysIO.jl) package,
+which owns cascade serialization, reading, and validation. ThreeBodyDecaysIO
+has no CascadeDecays dependency or extension.
 
-```julia
-import CascadeDecays
-using ThreeBodyDecaysIO
-
-description, functions = serializeToDict(cascade;
-    masses = (m1, m2, m3, m0), particle_labels = ("A", "B", "C", "X"))
-```
-
-Supply the external masses in final-state order followed by the parent mass;
-CascadeDecays models do not store them. Binary cascades with more than three final
-particles are supported by the writer. `add_hs3_fields` and the reader currently
-support only three-body topologies. Cascade deserialization and physical domain
-construction are not implemented. Existing HS3 domain bounds are placeholders.
-
-Core functionality continues to support Julia 1.7. The dependency ranges include
-ThreeBodyDecays 0.13–0.15 and JSON 0.21/1. Parameters 0.12 remains allowed because
-the supported ThreeBodyDecays releases require it.
+Core functionality supports Julia 1.7, ThreeBodyDecays 0.13/0.15, and JSON 0.21/1.
+Parameters 0.12 remains allowed because the supported ThreeBodyDecays releases
+require it.
 
 ## Running Tests
 
