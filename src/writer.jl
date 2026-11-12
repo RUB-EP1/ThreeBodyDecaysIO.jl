@@ -1,4 +1,4 @@
-function serializeToDict(H::VertexFunction)
+function serializeToDict(H::Vertex)
     type = "ls"
     @unpack h, ff = H
     ff_name, ff_appendix = serializeToDict(ff)
@@ -146,7 +146,7 @@ function serializeToDict(
         push!(dict, "weight" => replace(string(coupling), "im" => "i"))
     end
     #
-    i, j, k = ijk(first(chains).k)
+    i, j, k = ijk(ThreeBodyDecays.reference_k(model))
     #
     model_dict = LittleDict{String,Any}(
         "kinematics" => _kinematics,

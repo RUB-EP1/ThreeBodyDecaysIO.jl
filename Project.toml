@@ -25,7 +25,7 @@ HadronicLineshapes = ">= 0.4.2"
 Parameters = "0.12, 0.13"
 Random = ">= 1.7"
 RuntimeGeneratedFunctions = ">= 0.5"
-ThreeBodyDecays = "0.13, 0.15"
+ThreeBodyDecays = "0.16"
 julia = ">= 1.7"
 
 [extras]

@@ -59,7 +59,7 @@ function dict2instance(::Type{DecayChain}, dict; tbs, workspace = Dict())
     ind_ij = findfirst(v -> v["node"] == [i, j], vertices)
     vertex_ij = vertices[ind_ij]
     Hij = dict2instance(
-        ThreeBodyDecays.VertexFunction,
+        ThreeBodyDecays.Vertex,
         vertex_ij,
         (; two_j_fin = [two_js[i], two_js[j]], two_j_ini = two_j);
         workspace,
@@ -68,7 +68,7 @@ function dict2instance(::Type{DecayChain}, dict; tbs, workspace = Dict())
     ind_Rk = findfirst(v -> v["node"] == [[i, j], k], vertices)
     vertex_Rk = vertices[ind_Rk]
     HRk = dict2instance(
-        ThreeBodyDecays.VertexFunction,
+        ThreeBodyDecays.Vertex,
         vertex_Rk,
         (; two_j_fin = [two_j, two_js[k]], two_j_ini = two_js[4]);
         workspace,
@@ -91,19 +91,21 @@ function build_or_fetch(key, workspace)
 end
 
 function dict2instance(::Type{ThreeBodyDecay}, decay_description; workspace)
-    @unpack kinematics, chains = decay_description
+    @unpack kinematics, chains, reference_topology = decay_description
+    reference_k = topology2k(reference_topology)
     tbs = dict2instance(ThreeBodySystem, kinematics)
     df = dict2instance.(DecayChain, chains; tbs, workspace) |> DataFrame
     model = ThreeBodyDecay(
         Vector{Pair{String,Tuple{Complex,AbstractDecayChain}}}(
             df.name .=> zip(df.coupling, df.chain),
-        ),
+        );
+        reference_k,
     )
     return model
 end
 
 function dict2instance(
-    ::Type{ThreeBodyDecays.VertexFunction},
+    ::Type{ThreeBodyDecays.Vertex},
     dict,
     properties;
     workspace = Dict(),
@@ -118,7 +120,7 @@ function dict2instance(
     end
     helicity = dict2instance(ThreeBodyDecays.Recoupling, dict, properties)
 
-    return VertexFunction(helicity, formfactor)
+    return Vertex(helicity, formfactor)
 end
 
 function dict2instance(::Type{ThreeBodyDecays.Recoupling}, dict, properties)
