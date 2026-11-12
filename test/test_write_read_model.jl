@@ -96,14 +96,17 @@ end
     model_parsed = dict2instance(ThreeBodyDecay, decay_description; workspace)
 
     σs0 = randomPoint(masses(model_parsed))
-    @test ThreeBodyDecays.reference_k(model_parsed) == ThreeBodyDecays.reference_k(model) == 2
+    @test ThreeBodyDecays.reference_k(model_parsed) ==
+          ThreeBodyDecays.reference_k(model) ==
+          2
     @test amplitude(model_parsed, σs0) ≈ amplitude(model, σs0)
     @test unpolarized_intensity(model_parsed, σs0) ≈ unpolarized_intensity(model, σs0)
 end
 
 @testset "Chain names are independent of shared propagators" begin
     chain = first(model.chains)
-    named_model = ThreeBodyDecay(["first" => (1.0, chain), "second" => (2.0, chain)]; reference_k = 2)
+    named_model =
+        ThreeBodyDecay(["first" => (1.0, chain), "second" => (2.0, chain)]; reference_k = 2)
     description, functions = serializeToDict(named_model)
     @test getindex.(description["chains"], "name") == ["first", "second"]
     @test length(functions) == 1
@@ -117,8 +120,9 @@ end
 end
 
 @testset "All reference topologies survive serialization" begin
-    for k in 1:3
-        original = ThreeBodyDecay(model.chains, model.couplings, model.names; reference_k = k)
+    for k = 1:3
+        original =
+            ThreeBodyDecay(model.chains, model.couplings, model.names; reference_k = k)
         description, workspace = serializeToDict(original)
         @test topology2k(description["reference_topology"]) == k
         restored = dict2instance(ThreeBodyDecay, description; workspace)

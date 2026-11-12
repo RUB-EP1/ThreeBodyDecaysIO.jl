@@ -106,3 +106,5 @@ Contributions to `ThreeBodyDecaysIO` are welcome. To contribute, please fork the
 ## ThreeBodyDecays 0.16
 
 Requires ThreeBodyDecays 0.16. Vertex serialization uses `Vertex`. Model serialization writes the model's stored `reference_k` as `reference_topology`, and deserialization restores that reference. A description must include `reference_topology`; it is never inferred from the first chain. For legacy fitted models, verify that the serialized topology matches the coupling convention before importing: the former mixed reference default has no general single-topology replacement.
+
+The legacy Lc fixture is migrated from the old first-chain metadata to reference 1, matching its fitted couplings. Its validation coordinates describe the same Dalitz point and its intensity checksum is unchanged.

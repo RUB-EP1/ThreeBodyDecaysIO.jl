@@ -117,6 +117,14 @@ let
                     key = "name",
                     apply = v -> v["value"],
                 )
+                @test ThreeBodyDecays.reference_k(dist.model) == 1
+                mass_angles = ThreeBodyDecaysIO.mass_angles_replace(
+                    _parameters,
+                    dist.mass_angles_cascade_names,
+                )
+                _, σs = angles_invariants(mass_angles, masses(dist.model); k = 1)
+                @test σs.σ1 ≈ 0.7980703453578917
+                @test σs.σ2 ≈ 3.6486261122281745
                 @test value ≈ dist(_parameters)
                 return "🟢"
             end

@@ -104,12 +104,7 @@ function dict2instance(::Type{ThreeBodyDecay}, decay_description; workspace)
     return model
 end
 
-function dict2instance(
-    ::Type{ThreeBodyDecays.Vertex},
-    dict,
-    properties;
-    workspace = Dict(),
-)
+function dict2instance(::Type{ThreeBodyDecays.Vertex}, dict, properties; workspace = Dict())
 
     formfactor_name = dict["formfactor"]
     # Handle formfactor: if empty string, use NoFormFactor(), otherwise get from workspace
