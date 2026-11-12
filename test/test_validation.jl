@@ -37,14 +37,14 @@ model = let
         k = 1,
         two_j,
         Xlineshape = BreitWigner(1.1, 0.1),
-        Hij = RecouplingLS((two_j, 0)) |> VertexFunction,
-        HRk = RecouplingLS((two_j, two_j)) |> VertexFunction,
+        Hij = RecouplingLS((two_j, 0)) |> Vertex,
+        HRk = RecouplingLS((two_j, two_j)) |> Vertex,
         tbs,
     )
     ch2 = DecayChain(ch1; k = 2)
     ch3 = DecayChain(ch1; k = 3)
     #
-    ThreeBodyDecay("K892" .=> [(4.0, ch1), (2.0, ch2), (3.0, ch3)])
+    ThreeBodyDecay("K892" .=> [(4.0, ch1), (2.0, ch2), (3.0, ch3)]; reference_k = 2)
 end
 
 @testset "Order and values in validation_fields" begin

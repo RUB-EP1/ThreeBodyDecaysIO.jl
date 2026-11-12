@@ -32,7 +32,7 @@
                         }
                     ]
                 },
-                "reference_topology": [[3, 1], 2],
+                "reference_topology": [[2, 3], 1],
                 "chains": [
                     {
                         "propagators": [
@@ -741,15 +741,15 @@
             },
             "variables": [
                 {
-                    "node": [3, 1],
-                    "mass_phi_costheta": ["m_31", "phi_31", "cos_theta_31"]
+                    "node": [2, 3],
+                    "mass_phi_costheta": ["m_23", "phi_23", "cos_theta_23"]
                 },
                 {
-                    "node": [[3, 1], 2],
+                    "node": [[2, 3], 1],
                     "mass_phi_costheta": [
-                        "m_31_2",
-                        "phi_31_2",
-                        "cos_theta_31_2"
+                        "m_23_1",
+                        "phi_23_1",
+                        "cos_theta_23_1"
                     ]
                 }
             ],
@@ -919,32 +919,32 @@
             "type": "product_domain",
             "axes": [
                 {
-                    "name": "cos_theta_12",
+                    "name": "cos_theta_23",
                     "min": -1.0,
                     "max": 1.0
                 },
                 {
-                    "name": "phi_12",
+                    "name": "phi_23",
                     "min": -3.14,
                     "max": 3.14
                 },
                 {
-                    "name": "m_12",
+                    "name": "m_23",
                     "min": 1.0,
                     "max": 5.5
                 },
                 {
-                    "name": "cos_theta_12_3",
+                    "name": "cos_theta_23_1",
                     "min": -1.0,
                     "max": 1.0
                 },
                 {
-                    "name": "phi_12_3",
+                    "name": "phi_23_1",
                     "min": -3.14,
                     "max": 3.14
                 },
                 {
-                    "name": "m_12_3",
+                    "name": "m_23_1",
                     "min": 1.0,
                     "max": 5.5
                 }
@@ -965,27 +965,27 @@
             "name": "validation_point",
             "parameters": [
                 {
-                    "name": "cos_theta_31",
-                    "value": -0.2309352648098208
+                    "name": "cos_theta_23",
+                    "value": -0.24793182448507325
                 },
                 {
-                    "name": "phi_31",
+                    "name": "phi_23",
                     "value": 0.0
                 },
                 {
-                    "name": "m_31",
-                    "value": 1.9101377207489973
+                    "name": "m_23",
+                    "value": 0.8933478299956248
                 },
                 {
-                    "name": "cos_theta_31_2",
+                    "name": "cos_theta_23_1",
                     "value": 0.0
                 },
                 {
-                    "name": "phi_31_2",
+                    "name": "phi_23_1",
                     "value": 0.0
                 },
                 {
-                    "name": "m_31_2",
+                    "name": "m_23_1",
                     "value": 2.28646
                 }
             ]
